@@ -1,4 +1,6 @@
 import * as path from 'path'
+import { remoteExecFile } from './remote/client'
+import { execFile } from 'child_process'
 
 function resolveEmbeddedGitDir(): string {
   if (
@@ -64,6 +66,18 @@ function resolveGitExecPath(): string {
 }
 
 /**
+ * Find the proper execution strategy
+ */
+function resolveExecStrategy() {
+  if (process.env.DUGITE_REMOTE_SERVER) {
+    // when running a remote server, use the remote exec strategy
+    return remoteExecFile
+  } else {
+    return execFile
+  }
+}
+
+/**
  * Setup the process environment before invoking Git.
  *
  * This method resolves the Git executable and creates the array of key-value
@@ -73,8 +87,9 @@ function resolveGitExecPath(): string {
  */
 export function setupEnvironment(
   environmentVariables: NodeJS.ProcessEnv
-): { env: NodeJS.ProcessEnv; gitLocation: string } {
+): { env: NodeJS.ProcessEnv; gitLocation: string; execStrategy: Function } {
   const gitLocation = resolveGitBinary()
+  const execStrategy = resolveExecStrategy()
 
   let envPath: string = process.env.PATH || ''
   const gitDir = resolveGitDir()
@@ -130,5 +145,5 @@ export function setupEnvironment(
     }
   }
 
-  return { env, gitLocation }
+  return { env, gitLocation, execStrategy }
 }

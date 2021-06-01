@@ -1,7 +1,6 @@
 import * as fs from 'fs'
 
 import { spawn, ExecOptionsWithStringEncoding } from 'child_process'
-import { remoteExecFile } from './remote/client'
 import {
   GitError,
   GitErrorRegexes,
@@ -151,7 +150,7 @@ export class GitProcess {
         customEnv = options.env
       }
 
-      const { env, gitLocation } = setupEnvironment(customEnv)
+      const { env, gitLocation, execStrategy } = setupEnvironment(customEnv)
 
       // Explicitly annotate opts since typescript is unable to infer the correct
       // signature for execFile when options is passed as an opaque hash. The type
@@ -165,10 +164,10 @@ export class GitProcess {
         env
       }
 
-      const spawnedProcess = remoteExecFile(gitLocation, args, execOptions, function(
+      const spawnedProcess = execStrategy(gitLocation, args, execOptions, function(
         err: Error | null,
-        stdout,
-        stderr
+        stdout: string,
+        stderr: string
       ) {
         if (!err) {
           fs.writeFileSync(
