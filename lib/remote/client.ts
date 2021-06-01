@@ -1,9 +1,8 @@
-import * as fs from 'fs'
-
 import { request } from 'http'
-import { ExecOptions, ChildProcess, execFile } from 'child_process'
+import { ChildProcess, execFile } from 'child_process'
+import { IExecOptions } from '../git-process'
 
-export function remoteExecFile(_: string, args: string[], options: ExecOptions, cb: (error: Error | null, stdout: string, stderr: string) => void): ChildProcess {
+export function remoteExecFile(_: string, args: string[], options: IExecOptions, cb: (error: Error | null, stdout: string, stderr: string) => void): ChildProcess {
   httpRequest(args, options).then((result) => {
     const stdout = result.stdout
     const stderr = result.stderr
@@ -26,7 +25,7 @@ class ExecFileError extends Error {
   }
 }
 
-function httpRequest(args: string[], options: ExecOptions): Promise<any> {
+function httpRequest(args: string[], options: IExecOptions): Promise<any> {
   return new Promise((resolve, reject) => {
     const url = new URL(process.env.DUGITE_REMOTE_URL || "")
     const postData = JSON.stringify({'args': args, 'options': options})
@@ -47,11 +46,6 @@ function httpRequest(args: string[], options: ExecOptions): Promise<any> {
         data += chunk
       })
       res.on('end', () => {
-        fs.writeFileSync(
-            '/tmp/server_response.txt',
-            data + '\n\n\n\n',
-            { encoding: 'utf8', flag: 'a'}
-          )
         resolve(JSON.parse(data))
       })
     })

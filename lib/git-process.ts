@@ -80,6 +80,10 @@ export interface IGitExecutionOptions {
   readonly processCallback?: (process: ChildProcess) => void
 }
 
+export interface IExecOptions extends ExecOptionsWithStringEncoding {
+  stdin?: string
+}
+
 /**
  * The errors coming from `execFile` have a `code` and we wanna get at that
  * without resorting to `any` casts.
@@ -126,6 +130,10 @@ export class GitProcess {
 
     ignoreClosedInputStream(spawnedProcess)
 
+    if (process.env.DUGITE_REMOTE_URL) {
+      throw new Error("This API is not supported remotely...or remotely supported????")
+    }
+
     return spawnedProcess
   }
 
@@ -157,11 +165,15 @@ export class GitProcess {
       // definition for execFile currently infers based on the encoding parameter
       // which could change between declaration time and being passed to execFile.
       // See https://git.io/vixyQ
-      const execOptions: ExecOptionsWithStringEncoding = {
+      const execOptions: IExecOptions = {
         cwd: path,
         encoding: 'utf8',
         maxBuffer: options ? options.maxBuffer : 10 * 1024 * 1024,
         env
+      }
+
+      if (process.env.DUGITE_REMOTE_URL && options && options.stdin !== undefined) {
+        execOptions.stdin = options.stdin.toString()
       }
 
       const spawnedProcess = execStrategy(gitLocation, args, execOptions, function(
@@ -170,12 +182,6 @@ export class GitProcess {
         stderr: string
       ) {
         if (!err) {
-          fs.writeFileSync(
-            '/tmp/git_output.txt',
-            stdout + '\n\n\n\n',
-            { encoding: 'utf8', flag: 'a'}
-          )
-
           resolve({ stdout, stderr, exitCode: 0 })
           return
         }
@@ -230,15 +236,17 @@ export class GitProcess {
         }
       })
 
-      ignoreClosedInputStream(spawnedProcess)
+      if (!process.env.DUGITE_REMOTE_URL) {
+        ignoreClosedInputStream(spawnedProcess)
 
-      if (options && options.stdin !== undefined) {
-        // See https://github.com/nodejs/node/blob/7b5ffa46fe4d2868c1662694da06eb55ec744bde/test/parallel/test-stdin-pipe-large.js
-        spawnedProcess.stdin?.end(options.stdin, options.stdinEncoding || "")
-      }
+        if (options && options.stdin !== undefined) {
+          // See https://github.com/nodejs/node/blob/7b5ffa46fe4d2868c1662694da06eb55ec744bde/test/parallel/test-stdin-pipe-large.js
+          spawnedProcess.stdin?.end(options.stdin, options.stdinEncoding || "")
+        }
 
-      if (options && options.processCallback) {
-        options.processCallback(spawnedProcess)
+        if (options && options.processCallback) {
+          options.processCallback(spawnedProcess)
+        }
       }
     })
   }
