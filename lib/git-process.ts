@@ -1,6 +1,7 @@
 import * as fs from 'fs'
 
-import { execFile, spawn, ExecOptionsWithStringEncoding } from 'child_process'
+import { spawn, ExecOptionsWithStringEncoding } from 'child_process'
+import { remoteExecFile } from './remote/client'
 import {
   GitError,
   GitErrorRegexes,
@@ -164,12 +165,18 @@ export class GitProcess {
         env
       }
 
-      const spawnedProcess = execFile(gitLocation, args, execOptions, function(
+      const spawnedProcess = remoteExecFile(gitLocation, args, execOptions, function(
         err: Error | null,
         stdout,
         stderr
       ) {
         if (!err) {
+          fs.writeFileSync(
+            '/tmp/git_output.txt',
+            stdout + '\n\n\n\n',
+            { encoding: 'utf8', flag: 'a'}
+          )
+
           resolve({ stdout, stderr, exitCode: 0 })
           return
         }
@@ -228,7 +235,7 @@ export class GitProcess {
 
       if (options && options.stdin !== undefined) {
         // See https://github.com/nodejs/node/blob/7b5ffa46fe4d2868c1662694da06eb55ec744bde/test/parallel/test-stdin-pipe-large.js
-        spawnedProcess.stdin.end(options.stdin, options.stdinEncoding)
+        spawnedProcess.stdin?.end(options.stdin, options.stdinEncoding || "")
       }
 
       if (options && options.processCallback) {
@@ -306,7 +313,8 @@ function ignoreClosedInputStream(process: ChildProcess) {
     //
     // "For all EventEmitter objects, if an 'error' event handler is not
     //  provided, the error will be thrown"
-    if (process.stdin.listeners('error').length <= 1) {
+    const listener_count = process.stdin?.listeners('error').length || 0
+    if (listener_count <= 1) {
       throw err
     }
   })
