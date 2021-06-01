@@ -28,11 +28,12 @@ class ExecFileError extends Error {
 
 function httpRequest(args: string[], options: ExecOptions): Promise<any> {
   return new Promise((resolve, reject) => {
+    const url = new URL(process.env.DUGITE_REMOTE_URL || "")
     const postData = JSON.stringify({'args': args, 'options': options})
     const postOptions = {
-      host: 'localhost',
-      port: '8000',
-      path: '/',
+      host: url.hostname,
+      port: url.port,
+      path: url.pathname,
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

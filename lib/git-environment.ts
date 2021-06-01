@@ -69,7 +69,7 @@ function resolveGitExecPath(): string {
  * Find the proper execution strategy
  */
 function resolveExecStrategy() {
-  if (process.env.DUGITE_REMOTE_SERVER) {
+  if (process.env.DUGITE_REMOTE_URL) {
     // when running a remote server, use the remote exec strategy
     return remoteExecFile
   } else {
