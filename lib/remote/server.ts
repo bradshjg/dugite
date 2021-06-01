@@ -17,7 +17,7 @@ const server = createServer((request, response) => {
     } else {
     // parse json
     const data = JSON.parse(body)
-    console.log(`got request: ${body}`)
+    console.log(`got request to run "${data.args}" with stdin "${data.options.stdin}"`)
     // execute command
     const spawnedProcess = execFile('git', data.args, data.options, (error, stdout, stderr) => {
       // send response
