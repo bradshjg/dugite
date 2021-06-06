@@ -1,4 +1,6 @@
 import * as path from 'path'
+import { remoteExecFile } from './remote/client'
+import { execFile } from 'child_process'
 
 function resolveEmbeddedGitDir(): string {
   if (
@@ -72,9 +74,11 @@ function resolveGitExecPath(): string {
  * @param additional options to include with the process
  */
 export function setupEnvironment(
-  environmentVariables: NodeJS.ProcessEnv
-): { env: NodeJS.ProcessEnv; gitLocation: string } {
+  environmentVariables: NodeJS.ProcessEnv,
+  remote = false
+): { env: NodeJS.ProcessEnv; gitLocation: string; execStrategy: Function } {
   const gitLocation = resolveGitBinary()
+  const execStrategy = remote ? remoteExecFile : execFile
 
   let envPath: string = process.env.PATH || ''
   const gitDir = resolveGitDir()
@@ -130,5 +134,5 @@ export function setupEnvironment(
     }
   }
 
-  return { env, gitLocation }
+  return { env, gitLocation, execStrategy }
 }

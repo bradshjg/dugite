@@ -1,6 +1,6 @@
 import * as fs from 'fs'
 
-import { execFile, spawn, ExecOptionsWithStringEncoding } from 'child_process'
+import { spawn, ExecOptionsWithStringEncoding } from 'child_process'
 import {
   GitError,
   GitErrorRegexes,
@@ -80,6 +80,10 @@ export interface IGitExecutionOptions {
   readonly processCallback?: (process: ChildProcess) => void
 }
 
+export interface IExecOptions extends ExecOptionsWithStringEncoding {
+  stdin?: string
+}
+
 /**
  * The errors coming from `execFile` have a `code` and we wanna get at that
  * without resorting to `any` casts.
@@ -142,7 +146,8 @@ export class GitProcess {
   public static exec(
     args: string[],
     path: string,
-    options?: IGitExecutionOptions
+    options?: IGitExecutionOptions,
+    remote = false
   ): Promise<IGitResult> {
     return new Promise<IGitResult>(function(resolve, reject) {
       let customEnv = {}
@@ -150,24 +155,31 @@ export class GitProcess {
         customEnv = options.env
       }
 
-      const { env, gitLocation } = setupEnvironment(customEnv)
+      const { env, gitLocation, execStrategy } = setupEnvironment(customEnv, remote)
 
       // Explicitly annotate opts since typescript is unable to infer the correct
       // signature for execFile when options is passed as an opaque hash. The type
       // definition for execFile currently infers based on the encoding parameter
       // which could change between declaration time and being passed to execFile.
       // See https://git.io/vixyQ
-      const execOptions: ExecOptionsWithStringEncoding = {
+      const execOptions: IExecOptions = {
         cwd: path,
         encoding: 'utf8',
-        maxBuffer: options ? options.maxBuffer : 10 * 1024 * 1024,
-        env
+        maxBuffer: options?.maxBuffer || 10 * 1024 * 1024,
       }
 
-      const spawnedProcess = execFile(gitLocation, args, execOptions, function(
+      if (!remote) {
+        execOptions.env = env
+      }
+
+      if (remote && options && options.stdin !== undefined) {
+        execOptions.stdin = options.stdin.toString()
+      }
+
+      const spawnedProcess = execStrategy(gitLocation, args, execOptions, function(
         err: Error | null,
-        stdout,
-        stderr
+        stdout: string,
+        stderr: string
       ) {
         if (!err) {
           resolve({ stdout, stderr, exitCode: 0 })
@@ -224,15 +236,17 @@ export class GitProcess {
         }
       })
 
-      ignoreClosedInputStream(spawnedProcess)
+      if (!remote) {
+        ignoreClosedInputStream(spawnedProcess)
 
-      if (options && options.stdin !== undefined) {
-        // See https://github.com/nodejs/node/blob/7b5ffa46fe4d2868c1662694da06eb55ec744bde/test/parallel/test-stdin-pipe-large.js
-        spawnedProcess.stdin.end(options.stdin, options.stdinEncoding)
-      }
+        if (options && options.stdin !== undefined) {
+          // See https://github.com/nodejs/node/blob/7b5ffa46fe4d2868c1662694da06eb55ec744bde/test/parallel/test-stdin-pipe-large.js
+          spawnedProcess.stdin?.end(options.stdin, options.stdinEncoding || "")
+        }
 
-      if (options && options.processCallback) {
-        options.processCallback(spawnedProcess)
+        if (options && options.processCallback) {
+          options.processCallback(spawnedProcess)
+        }
       }
     })
   }
@@ -306,7 +320,8 @@ function ignoreClosedInputStream(process: ChildProcess) {
     //
     // "For all EventEmitter objects, if an 'error' event handler is not
     //  provided, the error will be thrown"
-    if (process.stdin.listeners('error').length <= 1) {
+    const listener_count = process.stdin?.listeners('error').length || 0
+    if (listener_count <= 1) {
       throw err
     }
   })
