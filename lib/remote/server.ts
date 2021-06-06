@@ -17,6 +17,10 @@ const server = createServer((request, response) => {
     } else {
     // parse json
     const data = JSON.parse(body)
+    // ensure buffer size big enough for dotcom
+    if (!data.options.maxBuffer) {
+      data.options.maxBuffer = 10 * 1024 * 1024
+    }
     // execute command
     const spawnedProcess = execFile('git', data.args, data.options, (error, stdout, stderr) => {
       // send response
