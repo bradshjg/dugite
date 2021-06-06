@@ -19,9 +19,11 @@ const server = createServer((request, response) => {
     const data = JSON.parse(body)
     console.log(`got request to run "${data.args}" with stdin "${data.options.stdin}"`)
     // execute command
+    console.log(`with cwd ${data.options.cwd}`)
     const spawnedProcess = execFile('git', data.args, data.options, (error, stdout, stderr) => {
       // send response
       response.writeHead(200, {'Content-Type': 'application/json'})
+      console.log(`stdout: ${stdout}, stderr: ${stderr}, error: ${error}`)
       response.end(JSON.stringify({
         error: error,
         stdout: stdout,
