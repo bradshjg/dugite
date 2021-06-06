@@ -130,10 +130,6 @@ export class GitProcess {
 
     ignoreClosedInputStream(spawnedProcess)
 
-    if (process.env.DUGITE_REMOTE_URL) {
-      throw new Error("This API is not supported remotely...or remotely supported????")
-    }
-
     return spawnedProcess
   }
 
@@ -150,7 +146,8 @@ export class GitProcess {
   public static exec(
     args: string[],
     path: string,
-    options?: IGitExecutionOptions
+    options?: IGitExecutionOptions,
+    remote = false
   ): Promise<IGitResult> {
     return new Promise<IGitResult>(function(resolve, reject) {
       let customEnv = {}
@@ -158,7 +155,7 @@ export class GitProcess {
         customEnv = options.env
       }
 
-      const { env, gitLocation, execStrategy } = setupEnvironment(customEnv)
+      const { env, gitLocation, execStrategy } = setupEnvironment(customEnv, remote)
 
       // Explicitly annotate opts since typescript is unable to infer the correct
       // signature for execFile when options is passed as an opaque hash. The type
@@ -169,10 +166,13 @@ export class GitProcess {
         cwd: path,
         encoding: 'utf8',
         maxBuffer: options ? options.maxBuffer : 10 * 1024 * 1024,
-        env
       }
 
-      if (process.env.DUGITE_REMOTE_URL && options && options.stdin !== undefined) {
+      if (!remote) {
+        execOptions.env = env
+      }
+
+      if (remote && options && options.stdin !== undefined) {
         execOptions.stdin = options.stdin.toString()
       }
 
@@ -236,7 +236,7 @@ export class GitProcess {
         }
       })
 
-      if (!process.env.DUGITE_REMOTE_URL) {
+      if (!remote) {
         ignoreClosedInputStream(spawnedProcess)
 
         if (options && options.stdin !== undefined) {

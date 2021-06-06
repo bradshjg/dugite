@@ -66,18 +66,6 @@ function resolveGitExecPath(): string {
 }
 
 /**
- * Find the proper execution strategy
- */
-function resolveExecStrategy() {
-  if (process.env.DUGITE_REMOTE_URL) {
-    // when running a remote server, use the remote exec strategy
-    return remoteExecFile
-  } else {
-    return execFile
-  }
-}
-
-/**
  * Setup the process environment before invoking Git.
  *
  * This method resolves the Git executable and creates the array of key-value
@@ -86,10 +74,11 @@ function resolveExecStrategy() {
  * @param additional options to include with the process
  */
 export function setupEnvironment(
-  environmentVariables: NodeJS.ProcessEnv
+  environmentVariables: NodeJS.ProcessEnv,
+  remote = false
 ): { env: NodeJS.ProcessEnv; gitLocation: string; execStrategy: Function } {
   const gitLocation = resolveGitBinary()
-  const execStrategy = resolveExecStrategy()
+  const execStrategy = remote ? remoteExecFile : execFile
 
   let envPath: string = process.env.PATH || ''
   const gitDir = resolveGitDir()
