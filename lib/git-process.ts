@@ -181,6 +181,7 @@ export class GitProcess {
         stdout: string,
         stderr: string
       ) {
+        console.log(`args ${args}, cwd ${execOptions.cwd}, stdout ${stdout}, stderr ${stderr}`)
         if (!err) {
           resolve({ stdout, stderr, exitCode: 0 })
           return
