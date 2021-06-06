@@ -165,7 +165,7 @@ export class GitProcess {
       const execOptions: IExecOptions = {
         cwd: path,
         encoding: 'utf8',
-        maxBuffer: options ? options.maxBuffer : 10 * 1024 * 1024,
+        maxBuffer: options?.maxBuffer || 10 * 1024 * 1024,
       }
 
       if (!remote) {
