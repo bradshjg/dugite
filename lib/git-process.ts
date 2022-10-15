@@ -99,6 +99,19 @@ export class GitProcess {
     }
   }
 
+  private static isRemotePath(path: string): Boolean {
+    return path.startsWith('ssh::')
+  }
+
+  private static remoteCommandArgs(path: string, args: string[]){
+    const host = path.split('::')[1]
+    const remotePath = path.split('::')[2]
+    return {
+      command: 'ssh',
+      args: [host, `cd ${remotePath} && git ${args.join(' ')}`]
+    }
+  }
+
   /**
    * Execute a command and interact with the process outputs directly.
    *
@@ -113,11 +126,10 @@ export class GitProcess {
   ): ChildProcess {
     let command
     let spawnArgs
-    if (path.startsWith('ssh::')) {
-      command = 'ssh'
-      const host = path.split('::')[1]
-      const remotePath = path.split('::')[2]
-      args = [host, `cd ${remotePath} && git ${args.join(' ')}`]
+    if (this.isRemotePath(path)) {
+      const commandArgs = this.remoteCommandArgs(path, args)
+      command = commandArgs['command']
+      args = commandArgs['args']
       // TODO we may have to reckon with setting up the environment,
       // but we'll _happily_ ignore that for now :-)
       spawnArgs = {}
@@ -187,9 +199,17 @@ export class GitProcess {
     const pidPromise = new Promise<undefined | number>(function (resolve) {
       pidResolve = resolve
     })
+    const self = this
 
     let result = new GitTask(
       new Promise<IGitResult>(function (resolve, reject) {
+        let command
+        // Explicitly annotate opts since typescript is unable to infer the correct
+        // signature for execFile when options is passed as an opaque hash. The type
+        // definition for execFile currently infers based on the encoding parameter
+        // which could change between declaration time and being passed to execFile.
+        // See https://git.io/vixyQ
+        let execOptions: ExecOptionsWithStringEncoding
         let customEnv = {}
         if (options && options.env) {
           customEnv = options.env
@@ -197,20 +217,28 @@ export class GitProcess {
 
         const { env, gitLocation } = setupEnvironment(customEnv)
 
-        // Explicitly annotate opts since typescript is unable to infer the correct
-        // signature for execFile when options is passed as an opaque hash. The type
-        // definition for execFile currently infers based on the encoding parameter
-        // which could change between declaration time and being passed to execFile.
-        // See https://git.io/vixyQ
-        const execOptions: ExecOptionsWithStringEncoding = {
-          cwd: path,
-          encoding: 'utf8',
-          maxBuffer: options ? options.maxBuffer : 10 * 1024 * 1024,
-          env,
+        if (self.isRemotePath(path)) {
+          const commandArgs = self.remoteCommandArgs(path, args)
+          command = commandArgs['command']
+          args = commandArgs['args']
+          // TODO we may have to reckon with setting up the environment,
+          // but we'll _happily_ ignore that for now :-)
+          execOptions = {
+            encoding: 'utf8',
+            maxBuffer: options ? options.maxBuffer : 10 * 1024 * 1024,
+          }
+        } else {
+          command = gitLocation
+          execOptions = {
+            cwd: path,
+            encoding: 'utf8',
+            maxBuffer: options ? options.maxBuffer : 10 * 1024 * 1024,
+            env,
+          }
         }
 
         const spawnedProcess = execFile(
-          gitLocation,
+          command,
           args,
           execOptions,
           function (err: Error | null, stdout, stderr) {
