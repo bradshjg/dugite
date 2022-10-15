@@ -26,5 +26,5 @@ async function checkStatusSpawn(path) {
 
 const path = process.argv[2]
 console.log(`Using path: ${path}\n`)
-// await checkStatusExec(path)
+await checkStatusExec(path)
 await checkStatusSpawn(path)
