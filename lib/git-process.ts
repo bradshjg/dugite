@@ -111,19 +111,31 @@ export class GitProcess {
     path: string,
     options?: IGitSpawnExecutionOptions
   ): ChildProcess {
-    let customEnv = {}
-    if (options && options.env) {
-      customEnv = options.env
+    let command
+    let spawnArgs
+    if (path.startsWith('ssh::')) {
+      command = 'ssh'
+      const host = path.split('::')[1]
+      const remotePath = path.split('::')[2]
+      args = [host, `cd ${remotePath} && git ${args.join(' ')}`]
+      // TODO we may have to reckon with setting up the environment,
+      // but we'll _happily_ ignore that for now :-)
+      spawnArgs = {}
+    } else {
+      let customEnv = {}
+      if (options && options.env) {
+        customEnv = options.env
+      }
+
+      const { env, gitLocation } = setupEnvironment(customEnv)
+      command = gitLocation
+      spawnArgs = {
+        env,
+        cwd: path,
+      }
     }
 
-    const { env, gitLocation } = setupEnvironment(customEnv)
-
-    const spawnArgs = {
-      env,
-      cwd: path,
-    }
-
-    const spawnedProcess = spawn(gitLocation, args, spawnArgs)
+    const spawnedProcess = spawn(command, args, spawnArgs)
 
     ignoreClosedInputStream(spawnedProcess)
 
