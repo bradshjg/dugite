@@ -24,7 +24,21 @@ async function checkStatusSpawn(path) {
   });
 }
 
+async function checkGnarlyArgs(path) {
+  console.log(`Checking gnarly arg invocation of ${path}`)
+  const args = [
+    'for-each-ref',
+    '--format=%00%(refname)%00%(objectname)%00%(upstream)%00%(symref)%00%(HEAD)%00',
+    'refs/heads',
+    'refs/remotes'
+  ]
+  const result = await git.exec(args, path)
+  console.log(`args: ${args}`)
+  console.log(result.stdout)
+}
+
 const path = process.argv[2]
 console.log(`Using path: ${path}\n`)
 await checkStatusExec(path)
 await checkStatusSpawn(path)
+await checkGnarlyArgs(path)
