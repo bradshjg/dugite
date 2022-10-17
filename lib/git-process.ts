@@ -106,9 +106,23 @@ export class GitProcess {
   private static remoteCommandArgs(path: string, args: string[]){
     const host = path.split('::')[1]
     const remotePath = path.split('::')[2]
+
+    const shellEscape = (args: string[]): string[] => {
+      const escaped_args = args.map(function(s) {
+        if (/[^A-Za-z0-9_\/:=-]/.test(s)) {
+          s = "'"+s.replace(/'/g,"'\\''")+"'";
+          s = s.replace(/^(?:'')+/g, '') // unduplicate single-quote at the beginning
+            .replace(/\\'''/g, "\\'" ); // remove non-escaped single-quote if there are enclosed between 2 escaped
+        }
+        return s
+      })
+
+      return escaped_args
+    }
+
     return {
       command: 'ssh',
-      args: [host, `cd ${remotePath} && git ${args.join(' ')}`]
+      args: [host, `cd ${remotePath} && git ${shellEscape(args).join(' ')}`]
     }
   }
 
